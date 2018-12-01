@@ -1,11 +1,32 @@
+use std::collections::HashSet;
 use std::io::{stdin, Read};
 
 fn main() {
     let mut input = String::new();
     stdin().read_to_string(&mut input).unwrap();
 
-    let result: i32 = input
+    let deltas: Vec<i32> = input
         .lines()
-        .fold(0, |acc, x| acc + x.trim().parse::<i32>().unwrap());
+        .map(|x| x.trim().parse::<i32>().unwrap())
+        .collect();
+
+    let result: i32 = deltas.iter().sum();
     println!("Part 1: the resulting frequency is {}", result);
+
+    let mut frequency = 0;
+    let mut hs = HashSet::new();
+
+    'outer_loop: loop {
+        for delta in deltas.iter().cycle() {
+            frequency += delta;
+            if !hs.insert(frequency) {
+                break 'outer_loop;
+            }
+        }
+    }
+
+    println!(
+        "Part 2: the first frequency the device reaches twice is {}",
+        frequency
+    );
 }
