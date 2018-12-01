@@ -16,12 +16,10 @@ fn main() {
     let mut frequency = 0;
     let mut hs = HashSet::new();
 
-    'outer_loop: loop {
-        for delta in deltas.iter().cycle() {
-            frequency += delta;
-            if !hs.insert(frequency) {
-                break 'outer_loop;
-            }
+    for delta in deltas.iter().cycle() {
+        frequency += delta;
+        if !hs.insert(frequency) {
+            break;
         }
     }
 
