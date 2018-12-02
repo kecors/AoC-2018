@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::io::{stdin, Read};
 
-fn solve(ids: &[&str]) -> u32 {
+fn solve_part1(ids: &[&str]) -> u32 {
     let mut two_count = 0;
     let mut three_count = 0;
 
@@ -34,12 +34,32 @@ fn solve(ids: &[&str]) -> u32 {
     two_count * three_count
 }
 
+fn solve_part2(ids: &[&str]) -> String {
+    let ids_chars: Vec<Vec<char>> = ids.iter().map(|x| x.chars().collect()).collect();
+
+    for j in 0..ids_chars.len() {
+        for k in j + 1..ids_chars.len() {
+            let mut common_chars = Vec::new();
+            for m in 0..ids_chars[j].len() {
+                if ids_chars[j][m] == ids_chars[k][m] {
+                    common_chars.push(ids_chars[j][m]);
+                }
+            }
+            if common_chars.len() == ids_chars[j].len() - 1 {
+                return common_chars.iter().collect();
+            }
+        }
+    }
+
+    panic!("No solution available");
+}
+
 fn main() {
     let mut input = String::new();
     stdin().read_to_string(&mut input).unwrap();
 
     let ids: Vec<&str> = input.lines().collect();
 
-    let result = solve(&ids);
-    println!("Part 1: the checksum is {}", result);
+    println!("Part 1: the checksum is {}", solve_part1(&ids));
+    println!("Part 2: the common letters are {}", solve_part2(&ids));
 }
