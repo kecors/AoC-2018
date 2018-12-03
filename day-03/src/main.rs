@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::io::{stdin, Read};
 
 extern crate pest;
@@ -48,7 +49,7 @@ fn parse(line: &str) -> Claim {
     claim
 }
 
-fn solve_part1(claims: &[Claim]) -> u32 {
+fn solve(claims: &[Claim]) -> (u32, u32) {
     let mut max_x = 1000;
     let mut max_y = 1000;
 
@@ -61,29 +62,39 @@ fn solve_part1(claims: &[Claim]) -> u32 {
         }
     }
 
-    let mut claim_counts = vec![vec![0; max_x as usize]; max_y as usize];
+    let mut square_claim_ids = vec![vec![vec![]; max_x as usize]; max_y as usize];
 
     for claim in claims.iter() {
         for dy in 0..claim.height {
             for dx in 0..claim.width {
                 let x = (claim.left_offset + dx) as usize;
                 let y = (claim.top_offset + dy) as usize;
-                claim_counts[x][y] += 1;
+                square_claim_ids[x][y].push(claim.id);
             }
         }
     }
 
     let mut claim_multiples = 0;
+    let mut claim_id_hs: HashSet<u32> = claims.iter().map(|x| x.id).collect();
 
     for y in 0..(max_y as usize) {
         for x in 0..(max_x as usize) {
-            if claim_counts[x][y] >= 2 {
+            if square_claim_ids[x][y].len() >= 2 {
                 claim_multiples += 1;
+                for claim_id in square_claim_ids[x][y].iter() {
+                    claim_id_hs.remove(&claim_id);
+                }
             }
         }
     }
 
-    claim_multiples
+    if claim_id_hs.len() != 1 {
+        panic!("The problem description states that exactly one claim does not overlap");
+    }
+
+    let non_overlapped_claim = claim_id_hs.drain().next().unwrap();
+
+    (claim_multiples, non_overlapped_claim)
 }
 
 fn main() {
@@ -92,8 +103,10 @@ fn main() {
 
     let claims: Vec<Claim> = input.lines().map(|x| parse(x)).collect();
 
+    let (part1, part2) = solve(&claims);
     println!(
         "Part 1: {} square inches of fabric are within two or more claims",
-        solve_part1(&claims)
+        part1
     );
+    println!("Part 2: the only claim that doesn't overlap is {}", part2);
 }
