@@ -1,0 +1,9 @@
+digit = { '0' .. '9' }
+
+id = { digit+ }
+left_offset = { digit+ }
+top_offset = { digit+ }
+width = { digit+ }
+height = { digit+ }
+
+claim = _{ "#" ~ id ~ " @ " ~ left_offset ~ "," ~ top_offset ~ ": " ~ width ~ "x" ~ height }
