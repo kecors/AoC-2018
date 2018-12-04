@@ -106,7 +106,7 @@ impl Shift {
     }
 }
 
-fn solve(mut events: Vec<Event>) -> u32 {
+fn solve(mut events: Vec<Event>) -> (u32, u32) {
     events.sort_by(|a, b| {
         if a.timestamp.year > b.timestamp.year {
             return Ordering::Greater;
@@ -140,7 +140,6 @@ fn solve(mut events: Vec<Event>) -> u32 {
         }
         Ordering::Equal
     });
-    //println!("events = {:#?}", events);
 
     let mut shifts = Vec::new();
     let mut first_pass_flag = true;
@@ -171,8 +170,6 @@ fn solve(mut events: Vec<Event>) -> u32 {
             }
         }
     }
-    //println!("shifts = {:#?}", shifts);
-    //println!("guard_sleep_minutes = {:#?}", guard_sleep_minutes);
 
     let mut max_minutes = 0;
     let mut max_minutes_guard_id = 0; // Value will be discarded
@@ -183,29 +180,46 @@ fn solve(mut events: Vec<Event>) -> u32 {
         }
     }
 
-    let mut minute_sleep_frequency = vec![0; 60];
+    let mut minute_sleep_frequency = HashMap::new();
 
     for shift in shifts.iter() {
-        if shift.guard_id == max_minutes_guard_id {
-            for minute in 0..60 {
-                if shift.sleeping_minutes[minute] {
-                    minute_sleep_frequency[minute] += 1;
-                }
+        for minute in 0..60 {
+            if shift.sleeping_minutes[minute] {
+                let frequency = minute_sleep_frequency
+                    .entry(shift.guard_id)
+                    .or_insert(vec![0; 60]);
+                frequency[minute] += 1;
             }
         }
     }
 
-    let mut max_frequency = 0;
-    let mut max_frequency_minute = 0; // Value will be discarded
+    let mut part1 = None;
+    let mut all_max_frequency = 0;
+    let mut all_max_frequency_minute = 0;
+    let mut all_max_frequency_guard_id = 0;
 
-    for minute in 0..60 {
-        if minute_sleep_frequency[minute] > max_frequency {
-            max_frequency = minute_sleep_frequency[minute];
-            max_frequency_minute = minute;
+    for (&guard_id, frequency) in minute_sleep_frequency.iter() {
+        let mut guard_max_frequency = 0;
+        let mut guard_max_frequency_minute = 0; // Value will be discarded
+        for minute in 0..60 {
+            if frequency[minute] > guard_max_frequency {
+                guard_max_frequency = frequency[minute];
+                guard_max_frequency_minute = minute;
+            }
+        }
+        if guard_id == max_minutes_guard_id {
+            part1 = Some(max_minutes_guard_id * guard_max_frequency_minute as u32);
+        }
+        if guard_max_frequency > all_max_frequency {
+            all_max_frequency = guard_max_frequency;
+            all_max_frequency_minute = guard_max_frequency_minute;
+            all_max_frequency_guard_id = guard_id;
         }
     }
 
-    max_minutes_guard_id * max_frequency_minute as u32
+    let part2 = all_max_frequency_guard_id * all_max_frequency_minute as u32;
+
+    (part1.unwrap(), part2)
 }
 
 fn main() {
@@ -214,9 +228,13 @@ fn main() {
 
     let events: Vec<Event> = input.lines().map(|x| parse(x)).collect();
 
-    let part1 = solve(events);
+    let (part1, part2) = solve(events);
     println!(
         "Part 1: the product of the chosen guard ID and the minute is {}",
         part1
+    );
+    println!(
+        "Part 2: the product of the chosen guard ID and the minute is {}",
+        part2
     );
 }
