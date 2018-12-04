@@ -1,0 +1,19 @@
+digit = { '0' .. '9' }
+
+year = { digit ~ digit ~ digit ~ digit }
+month = { digit ~ digit }
+day = { digit ~ digit }
+hour = { digit ~ digit }
+minute = { digit ~ digit }
+
+timestamp = { "[" ~ year ~ "-" ~ month ~ "-" ~ day ~ " " ~ hour ~ ":" ~ minute ~ "]" }
+
+guard_id = { digit+ }
+
+begins_shift = { " Guard #" ~ guard_id ~ " begins shift" }
+falls_asleep = { " falls asleep" }
+wakes_up = { " wakes up" }
+
+event = _{ timestamp ~ (begins_shift | falls_asleep | wakes_up) }
+
+main = _{ SOI ~ event+ ~ EOI }
