@@ -7,7 +7,7 @@ struct Location {
     y: u32,
 }
 
-fn solve(coordinates: &[Location]) -> u32 {
+fn solve(coordinates: &[Location]) -> (u32, u32) {
     let min_x = coordinates.iter().fold(0, |acc, c| c.x.min(acc));
     let min_y = coordinates.iter().fold(0, |acc, c| c.y.min(acc));
     let max_x = coordinates.iter().fold(0, |acc, c| c.x.max(acc));
@@ -15,14 +15,17 @@ fn solve(coordinates: &[Location]) -> u32 {
 
     // Determine the closest coordinate for each location
     let mut coordinate_locations: HashMap<Location, Vec<Location>> = HashMap::new();
+    let mut safe_region_count = 0;
     for y in min_y..=max_y {
         for x in min_x..=max_x {
             // cds = coordinate distances (from location)
             let mut cds_hm = HashMap::new();
+            let mut total_distance = 0;
             for &coordinate in coordinates.iter() {
                 let distance =
                     (coordinate.x as i32 - x as i32).abs() + (coordinate.y as i32 - y as i32).abs();
                 cds_hm.insert(coordinate, distance);
+                total_distance += distance;
             }
             let mut cds_vec: Vec<(Location, i32)> = cds_hm.drain().collect();
             cds_vec.sort_by(|a, b| a.1.cmp(&b.1));
@@ -31,6 +34,9 @@ fn solve(coordinates: &[Location]) -> u32 {
                     .entry(cds_vec[0].0)
                     .or_insert_with(Vec::new);
                 cl.push(Location { x, y });
+            }
+            if total_distance < 10000 {
+                safe_region_count += 1;
             }
         }
     }
@@ -49,7 +55,7 @@ fn solve(coordinates: &[Location]) -> u32 {
         }
     }
 
-    locations_max.0 as u32
+    (locations_max.0 as u32, safe_region_count)
 }
 
 fn main() {
@@ -64,9 +70,10 @@ fn main() {
         acc
     });
 
-    let part1 = solve(&coordinates);
+    let (part1, part2) = solve(&coordinates);
     println!(
         "Part 1: the size of the largest area that isn't infinite is {}",
         part1
     );
+    println!("Part 2: the size of the region is {}", part2);
 }
