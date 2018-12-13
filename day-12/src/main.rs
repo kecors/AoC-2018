@@ -104,7 +104,7 @@ impl Engine {
         self.pots = new_pots;
     }
 
-    fn pots_sum(&self) -> i32 {
+    fn sum(&self) -> i32 {
         let mut sum = 0;
 
         for pot in self.pots.iter() {
@@ -114,6 +114,31 @@ impl Engine {
         }
 
         sum
+    }
+
+    fn range(&self) -> (i32, i32) {
+        let front_number = if let Some(pot) = self.pots.front() {
+            pot.number
+        } else {
+            unreachable!("Impossible if any plants remain");
+        };
+        let back_number = if let Some(pot) = self.pots.back() {
+            pot.number
+        } else {
+            unreachable!("Impossible if any plants remain");
+        };
+
+        (front_number, back_number)
+    }
+
+    fn pattern(&self) -> String {
+        let mut pattern = String::new();
+
+        for pot in self.pots.iter() {
+            pattern.push(if pot.plant { '#' } else { '.' });
+        }
+
+        pattern
     }
 
     #[allow(dead_code)]
@@ -159,17 +184,40 @@ fn main() -> Result<(), Error> {
     let mut input = String::new();
     stdin().read_to_string(&mut input).unwrap();
 
-    let mut engine = engine().parse(input.as_bytes())?;
-    //println!("engine = {:?}", engine);
-
+    let mut engine_p1 = engine().parse(input.as_bytes())?;
     for _ in 0..20 {
-        engine.next_generation();
-        //engine.display();
+        engine_p1.next_generation();
     }
-    let part1 = engine.pots_sum();
+    let part1 = engine_p1.sum();
     println!(
-        "After 20 generations, the sum of the numbers of all pots which contain a plant is {}",
+        "Part 1: After 20 generations, the sum of the numbers of all pots which contain a plant is {}",
         part1
+    );
+
+    let mut engine_p2 = engine().parse(input.as_bytes())?;
+    let mut patterns = HashMap::new();
+
+    // The following block of code allows the observation that the pattern
+    // of plants remains stable after the first 158 generations. For each
+    // subsequent generation, the pattern shifts to the right by one pot and the
+    // sum increases by 86.
+    for x in 0..200 {
+        if x > 157 {
+            let p = patterns.entry(engine_p2.pattern()).or_insert_with(Vec::new);
+            p.push((x, engine_p2.range(), engine_p2.sum()));
+        }
+
+        engine_p2.next_generation();
+        println!("[{}] sum = {}", x, engine_p2.sum());
+        engine_p2.display();
+        println!();
+    }
+    println!("patterns = {:#?}", patterns);
+
+    let part2: u64 = (50_000_000_000 - 158) * 86 + 16002;
+    println!(
+        "Part 2: After fifty billion generations, the sum of the numbers of all pots which contain a plant is {}",
+        part2
     );
 
     Ok(())
