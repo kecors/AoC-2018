@@ -1,4 +1,5 @@
-use std::collections::HashSet;
+use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::io::{stdin, Read};
 
 #[derive(Debug)]
@@ -34,7 +35,6 @@ enum Turn {
 
 #[derive(Debug)]
 struct Cart {
-    location: Location,
     facing: Facing,
     next_turn: Turn,
 }
@@ -42,13 +42,13 @@ struct Cart {
 #[derive(Debug)]
 struct Engine {
     grid: Vec<Vec<Terrain>>,
-    carts: Vec<Cart>,
+    cart_locations: HashMap<Location, Cart>,
 }
 
 impl Engine {
     fn new(input: &str) -> Engine {
         let mut grid = Vec::new();
-        let mut carts = Vec::new();
+        let mut cart_locations = HashMap::new();
 
         for (y, line) in input.lines().enumerate() {
             let mut row = Vec::new();
@@ -74,35 +74,43 @@ impl Engine {
                     }
                     '^' => {
                         row.push(Terrain::Vertical);
-                        carts.push(Cart {
-                            location: Location { x, y },
-                            facing: Facing::North,
-                            next_turn: Turn::Left,
-                        });
+                        cart_locations.insert(
+                            Location { x, y },
+                            Cart {
+                                facing: Facing::North,
+                                next_turn: Turn::Left,
+                            },
+                        );
                     }
                     '>' => {
                         row.push(Terrain::Horizontal);
-                        carts.push(Cart {
-                            location: Location { x, y },
-                            facing: Facing::East,
-                            next_turn: Turn::Left,
-                        });
+                        cart_locations.insert(
+                            Location { x, y },
+                            Cart {
+                                facing: Facing::East,
+                                next_turn: Turn::Left,
+                            },
+                        );
                     }
                     'v' => {
                         row.push(Terrain::Vertical);
-                        carts.push(Cart {
-                            location: Location { x, y },
-                            facing: Facing::South,
-                            next_turn: Turn::Left,
-                        });
+                        cart_locations.insert(
+                            Location { x, y },
+                            Cart {
+                                facing: Facing::South,
+                                next_turn: Turn::Left,
+                            },
+                        );
                     }
                     '<' => {
                         row.push(Terrain::Horizontal);
-                        carts.push(Cart {
-                            location: Location { x, y },
-                            facing: Facing::West,
-                            next_turn: Turn::Left,
-                        });
+                        cart_locations.insert(
+                            Location { x, y },
+                            Cart {
+                                facing: Facing::West,
+                                next_turn: Turn::Left,
+                            },
+                        );
                     }
                     _ => panic!("Unexpected character in input"),
                 };
@@ -110,124 +118,155 @@ impl Engine {
             grid.push(row);
         }
 
-        Engine { grid, carts }
+        Engine {
+            grid,
+            cart_locations,
+        }
     }
 
-    fn tick(&mut self) -> Option<Location> {
-        for cart in self.carts.iter_mut() {
-            // Move cart
-            match cart.facing {
-                Facing::North => {
-                    cart.location.y -= 1;
-                }
-                Facing::East => {
-                    cart.location.x += 1;
-                }
-                Facing::South => {
-                    cart.location.y += 1;
-                }
-                Facing::West => {
-                    cart.location.x -= 1;
-                }
-            }
+    fn tick(&mut self, part1_flag: bool) -> Option<Location> {
+        let mut cart_location_keys: Vec<Location> = Vec::new();
+        for location in self.cart_locations.keys() {
+            cart_location_keys.push(*location);
+        }
+        cart_location_keys.sort_by(|a, b| match a.y.cmp(&b.y) {
+            Ordering::Less => Ordering::Less,
+            Ordering::Equal => a.x.cmp(&b.x),
+            Ordering::Greater => Ordering::Greater,
+        });
 
-            // Turn cart, if appropriate
-            match self.grid[cart.location.y][cart.location.x] {
-                Terrain::Intersection => match cart.facing {
-                    Facing::North => match cart.next_turn {
-                        Turn::Left => {
-                            cart.facing = Facing::West;
-                            cart.next_turn = Turn::Straight;
-                        }
-                        Turn::Straight => {
-                            cart.next_turn = Turn::Right;
-                        }
-                        Turn::Right => {
-                            cart.facing = Facing::East;
-                            cart.next_turn = Turn::Left;
-                        }
-                    },
-                    Facing::East => match cart.next_turn {
-                        Turn::Left => {
-                            cart.facing = Facing::North;
-                            cart.next_turn = Turn::Straight;
-                        }
-                        Turn::Straight => {
-                            cart.next_turn = Turn::Right;
-                        }
-                        Turn::Right => {
-                            cart.facing = Facing::South;
-                            cart.next_turn = Turn::Left;
-                        }
-                    },
-                    Facing::South => match cart.next_turn {
-                        Turn::Left => {
-                            cart.facing = Facing::East;
-                            cart.next_turn = Turn::Straight;
-                        }
-                        Turn::Straight => {
-                            cart.next_turn = Turn::Right;
-                        }
-                        Turn::Right => {
-                            cart.facing = Facing::West;
-                            cart.next_turn = Turn::Left;
-                        }
-                    },
-                    Facing::West => match cart.next_turn {
-                        Turn::Left => {
-                            cart.facing = Facing::South;
-                            cart.next_turn = Turn::Straight;
-                        }
-                        Turn::Straight => {
-                            cart.next_turn = Turn::Right;
-                        }
-                        Turn::Right => {
-                            cart.facing = Facing::North;
-                            cart.next_turn = Turn::Left;
-                        }
-                    },
-                },
-                Terrain::CurveLeft => match cart.facing {
+        for mut location in cart_location_keys {
+            if let Some(mut cart) = self.cart_locations.remove(&location) {
+                // Move cart
+                match cart.facing {
                     Facing::North => {
-                        cart.facing = Facing::West;
+                        location.y -= 1;
                     }
                     Facing::East => {
-                        cart.facing = Facing::South;
+                        location.x += 1;
                     }
                     Facing::South => {
-                        cart.facing = Facing::East;
+                        location.y += 1;
                     }
                     Facing::West => {
-                        cart.facing = Facing::North;
+                        location.x -= 1;
                     }
-                },
-                Terrain::CurveRight => match cart.facing {
-                    Facing::North => {
-                        cart.facing = Facing::East;
+                }
+
+                // If a crash has occurred, remove the other cart and proceed
+                if let Some(_cart) = self.cart_locations.remove(&location) {
+                    if part1_flag {
+                        return Some(location);
+                    } else {
+                        continue;
                     }
-                    Facing::East => {
-                        cart.facing = Facing::North;
-                    }
-                    Facing::South => {
-                        cart.facing = Facing::West;
-                    }
-                    Facing::West => {
-                        cart.facing = Facing::South;
-                    }
-                },
-                _ => {}
+                }
+
+                // Turn cart, if appropriate
+                match self.grid[location.y][location.x] {
+                    Terrain::Intersection => match cart.facing {
+                        Facing::North => match cart.next_turn {
+                            Turn::Left => {
+                                cart.facing = Facing::West;
+                                cart.next_turn = Turn::Straight;
+                            }
+                            Turn::Straight => {
+                                cart.next_turn = Turn::Right;
+                            }
+                            Turn::Right => {
+                                cart.facing = Facing::East;
+                                cart.next_turn = Turn::Left;
+                            }
+                        },
+                        Facing::East => match cart.next_turn {
+                            Turn::Left => {
+                                cart.facing = Facing::North;
+                                cart.next_turn = Turn::Straight;
+                            }
+                            Turn::Straight => {
+                                cart.next_turn = Turn::Right;
+                            }
+                            Turn::Right => {
+                                cart.facing = Facing::South;
+                                cart.next_turn = Turn::Left;
+                            }
+                        },
+                        Facing::South => match cart.next_turn {
+                            Turn::Left => {
+                                cart.facing = Facing::East;
+                                cart.next_turn = Turn::Straight;
+                            }
+                            Turn::Straight => {
+                                cart.next_turn = Turn::Right;
+                            }
+                            Turn::Right => {
+                                cart.facing = Facing::West;
+                                cart.next_turn = Turn::Left;
+                            }
+                        },
+                        Facing::West => match cart.next_turn {
+                            Turn::Left => {
+                                cart.facing = Facing::South;
+                                cart.next_turn = Turn::Straight;
+                            }
+                            Turn::Straight => {
+                                cart.next_turn = Turn::Right;
+                            }
+                            Turn::Right => {
+                                cart.facing = Facing::North;
+                                cart.next_turn = Turn::Left;
+                            }
+                        },
+                    },
+                    Terrain::CurveLeft => match cart.facing {
+                        Facing::North => {
+                            cart.facing = Facing::West;
+                        }
+                        Facing::East => {
+                            cart.facing = Facing::South;
+                        }
+                        Facing::South => {
+                            cart.facing = Facing::East;
+                        }
+                        Facing::West => {
+                            cart.facing = Facing::North;
+                        }
+                    },
+                    Terrain::CurveRight => match cart.facing {
+                        Facing::North => {
+                            cart.facing = Facing::East;
+                        }
+                        Facing::East => {
+                            cart.facing = Facing::North;
+                        }
+                        Facing::South => {
+                            cart.facing = Facing::West;
+                        }
+                        Facing::West => {
+                            cart.facing = Facing::South;
+                        }
+                    },
+                    _ => {}
+                }
+
+                // Store the cart at its new location
+                self.cart_locations.insert(location, cart);
             }
         }
 
-        // Report crashes
-        let mut location_hs = HashSet::new();
-        for cart in self.carts.iter() {
-            if !location_hs.insert(cart.location) {
-                return Some(cart.location);
+        // Return
+        match self.cart_locations.len() {
+            0 => {
+                panic!("No carts remain!");
+            }
+            1 => {
+                let (location, _cart) = self.cart_locations.drain().next().unwrap();
+                Some(location)
+            }
+            _ => {
+                None
             }
         }
-
-        None
     }
 }
 
@@ -236,14 +275,24 @@ fn main() {
     stdin().read_to_string(&mut input).unwrap();
 
     let mut engine = Engine::new(&input);
-
     let location = loop {
-        if let Some(location) = engine.tick() {
+        if let Some(location) = engine.tick(true) {
             break location;
         }
     };
     println!(
         "Part 1: the location of the first crash is {},{}",
+        location.x, location.y
+    );
+
+    let mut engine = Engine::new(&input);
+    let location = loop {
+        if let Some(location) = engine.tick(false) {
+            break location;
+        }
+    };
+    println!(
+        "Part 2: the location of the last cart is {},{}",
         location.x, location.y
     );
 }
