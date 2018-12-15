@@ -154,6 +154,9 @@ impl Engine {
                 }
 
                 // If a crash has occurred, remove the other cart and proceed
+                // 
+                // Note that this logic does not handle the scenario where 
+                // three carts crash at once.
                 if let Some(_cart) = self.cart_locations.remove(&location) {
                     if part1_flag {
                         return Some(location);
