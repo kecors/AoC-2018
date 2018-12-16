@@ -11,3 +11,5 @@ Cargo.lock
 *.swp
 puzzle-input.txt
 target
+sample-input-?.txt
+test-input-?.txt
