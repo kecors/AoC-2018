@@ -448,6 +448,8 @@ fn main() {
     let mut input = String::new();
     stdin().read_to_string(&mut input).unwrap();
 
+    // Part 1
+
     let mut engine = Engine::new(input.trim());
     engine.display();
 
@@ -458,7 +460,10 @@ fn main() {
     println!("Final:");
     engine.display();
 
-    println!("Combat ends after {} full rounds", engine.round_number);
+    println!(
+        "Part 1: Combat ends after {} full rounds",
+        engine.round_number
+    );
     for (allegiance, hit_point_total) in engine.hit_point_totals() {
         println!(
             "{} win with {} total hit points left",
@@ -471,5 +476,57 @@ fn main() {
             hit_point_total,
             engine.round_number * hit_point_total
         );
+    }
+
+    // Part 2
+
+    let mut elf_attack_power = 3;
+
+    loop {
+        elf_attack_power += 1;
+        println!("Elf attack power is {}", elf_attack_power);
+
+        let mut engine = Engine::new(input.trim());
+        let mut starting_elf_count = 0;
+
+        for unit in engine.unit_locations.values_mut() {
+            if unit.allegiance == Allegiance::Elf {
+                unit.attack_power = elf_attack_power;
+                starting_elf_count += 1;
+            }
+        }
+
+        while engine.round() {}
+
+        let remaining_elves: Vec<&Unit> = engine
+            .unit_locations
+            .values()
+            .filter(|x| x.allegiance == Allegiance::Elf)
+            .collect();
+        if remaining_elves.len() < starting_elf_count {
+            continue;
+        }
+
+        println!(
+            "Part 2: Combat ends after {} full rounds",
+            engine.round_number
+        );
+        for (allegiance, hit_point_total) in engine.hit_point_totals() {
+            if allegiance == Allegiance::Elf {
+                println!(
+                    "{} win with {} total hit points left",
+                    allegiance.name(),
+                    hit_point_total
+                );
+                println!(
+                    "Outcome: {} * {} = {}",
+                    engine.round_number,
+                    hit_point_total,
+                    engine.round_number * hit_point_total
+                );
+
+                return;
+            }
+        }
     }
 }
