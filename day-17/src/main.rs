@@ -305,6 +305,7 @@ fn main() -> Result<(), Error> {
 
     let (flowing, settled) = engine.water_tile_count();
     println!("Part 1: the water can reach {} tiles", flowing + settled);
+    println!("Part 2: {} tiles are left", settled);
 
     Ok(())
 }
