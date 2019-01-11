@@ -1,28 +1,73 @@
 use pom::parser::*;
 use pom::Error;
+use std::cmp::Reverse;
+use std::collections::{BinaryHeap, HashMap};
 use std::io::{stdin, Read};
 use std::str;
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Copy, Clone)]
 struct Coordinate {
     x: usize,
     y: usize,
 }
 
+impl Coordinate {
+    fn adjacents(&self) -> Vec<Coordinate> {
+        let mut adjacents = Vec::new();
+
+        adjacents.push(Coordinate {
+            x: self.x + 1,
+            y: self.y,
+        });
+        adjacents.push(Coordinate {
+            x: self.x,
+            y: self.y + 1,
+        });
+        if self.x > 0 {
+            adjacents.push(Coordinate {
+                x: self.x - 1,
+                y: self.y,
+            })
+        }
+        if self.y > 0 {
+            adjacents.push(Coordinate {
+                x: self.x,
+                y: self.y - 1,
+            })
+        };
+
+        adjacents
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum RegionType {
+    Rocky,
+    Wet,
+    Narrow,
+}
+
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Copy, Clone)]
+enum Equipment {
+    Torch,
+    ClimbingGear,
+    Neither,
+}
+
 #[derive(Debug)]
-struct Engine {
+struct Scanner {
     depth: u32,
     target: Coordinate,
     erosion_levels: Vec<Vec<u32>>,
 }
 
-impl Engine {
-    fn new(depth: u32, target: Coordinate) -> Engine {
+impl Scanner {
+    fn new(depth: u32, target: Coordinate) -> Scanner {
         let mut erosion_levels: Vec<Vec<u32>> = Vec::new();
 
-        for y in 0..=target.y {
+        for y in 0..=(target.y + target.x + (7 * 2)) {
             let mut row = Vec::new();
-            for x in 0..=target.x {
+            for x in 0..=(target.x + target.y + (7 * 2)) {
                 let geologic_index = if x == 0 && y == 0 {
                     0
                 } else if x == target.x && y == target.y {
@@ -42,31 +87,69 @@ impl Engine {
             erosion_levels.push(row);
         }
 
-        Engine {
+        Scanner {
             depth,
             target,
             erosion_levels,
         }
     }
 
-    fn display(&self) {
+    fn risk_level(&self) -> u32 {
+        let mut risk_level = 0;
+
+        for y in 0..=self.target.y {
+            for x in 0..=self.target.x {
+                risk_level += self.erosion_levels[y][x] % 3;
+            }
+        }
+
+        risk_level
+    }
+
+    fn cave(&self) -> Cave {
+        let mut regions = Vec::new();
+
         for y in 0..self.erosion_levels.len() {
+            let mut row = Vec::new();
             for x in 0..self.erosion_levels[0].len() {
+                row.push(match self.erosion_levels[y][x] % 3 {
+                    0 => RegionType::Rocky,
+                    1 => RegionType::Wet,
+                    2 => RegionType::Narrow,
+                    _ => panic!(),
+                });
+            }
+            regions.push(row);
+        }
+
+        Cave { regions }
+    }
+}
+
+#[derive(Debug)]
+struct Cave {
+    regions: Vec<Vec<RegionType>>,
+}
+
+impl Cave {
+    #[allow(dead_code)]
+    fn display(&self, target: &Coordinate) {
+        for y in 0..self.regions.len() {
+            for x in 0..self.regions[0].len() {
                 if x == 0 && y == 0 {
                     print!("M");
                     continue;
                 }
-                if x == self.target.x && y == self.target.y {
+                if x == target.x && y == target.y {
                     print!("T");
                     continue;
                 }
                 print!(
                     "{}",
-                    match self.erosion_levels[y][x] % 3 {
-                        0 => '.',
-                        1 => '=',
-                        2 => '|',
-                        _ => panic!(),
+                    match self.regions[y][x] {
+                        RegionType::Rocky => '.',
+                        RegionType::Wet => '=',
+                        RegionType::Narrow => '|',
                     }
                 );
             }
@@ -74,16 +157,52 @@ impl Engine {
         }
     }
 
-    fn risk_level(&self) -> u32 {
-        let mut risk_level = 0;
+    fn shortest_path(&self, target: &Coordinate) -> u32 {
+        use self::Equipment::*;
+        use self::RegionType::*;
 
-        for y in 0..self.erosion_levels.len() {
-            for x in 0..self.erosion_levels[0].len() {
-                risk_level += self.erosion_levels[y][x] % 3;
+        let mut smallest_durations: HashMap<(Coordinate, Equipment), u32> = HashMap::new();
+        let mut neighbors: BinaryHeap<Reverse<(u32, Coordinate, Equipment)>> = BinaryHeap::new();
+        neighbors.push(Reverse((0, Coordinate { x: 0, y: 0 }, Torch)));
+
+        while let Some(Reverse((duration, region, equipment))) = neighbors.pop() {
+            if let Some(smallest_duration) = smallest_durations.get(&(region, equipment)) {
+                if *smallest_duration <= duration {
+                    continue;
+                }
+            }
+            smallest_durations.insert((region, equipment), duration);
+
+            if region == *target && equipment == Torch {
+                return duration;
+            }
+
+            for adjacent in region.adjacents() {
+                if match (self.regions[adjacent.y][adjacent.x], equipment) {
+                    (Rocky, Torch) => true,
+                    (Rocky, ClimbingGear) => true,
+                    (Wet, ClimbingGear) => true,
+                    (Wet, Neither) => true,
+                    (Narrow, Torch) => true,
+                    (Narrow, Neither) => true,
+                    _ => false,
+                } {
+                    neighbors.push(Reverse((duration + 1, adjacent, equipment)));
+                }
+            }
+
+            match (self.regions[region.y][region.x], equipment) {
+                (Rocky, Torch) => neighbors.push(Reverse((duration + 7, region, ClimbingGear))),
+                (Rocky, ClimbingGear) => neighbors.push(Reverse((duration + 7, region, Torch))),
+                (Wet, ClimbingGear) => neighbors.push(Reverse((duration + 7, region, Neither))),
+                (Wet, Neither) => neighbors.push(Reverse((duration + 7, region, ClimbingGear))),
+                (Narrow, Torch) => neighbors.push(Reverse((duration + 7, region, Neither))),
+                (Narrow, Neither) => neighbors.push(Reverse((duration + 7, region, Torch))),
+                _ => (),
             }
         }
 
-        risk_level
+        u32::max_value()
     }
 }
 
@@ -110,18 +229,25 @@ fn target<'a>() -> Parser<'a, u8, Coordinate> {
         * (number() + (sym(b',') * number())).map(|(x, y)| Coordinate { x, y })
 }
 
-fn engine<'a>() -> Parser<'a, u8, Engine> {
-    (depth() + target()).map(|(depth, target)| Engine::new(depth, target))
+fn scanner<'a>() -> Parser<'a, u8, Scanner> {
+    (depth() + target()).map(|(depth, target)| Scanner::new(depth, target))
 }
 
 fn main() -> Result<(), Error> {
     let mut input = String::new();
     stdin().read_to_string(&mut input).unwrap();
 
-    let engine = engine().parse(input.as_bytes())?;
-    engine.display();
+    let scanner = scanner().parse(input.as_bytes())?;
 
-    println!("Part 1: the total risk level is {}", engine.risk_level());
+    let cave = scanner.cave();
+    //cave.display(&scanner.target);
+
+    println!("Part 1: the total risk level is {}", scanner.risk_level());
+
+    println!(
+        "Part 2: the fewest minutes needed to reach the target is {}",
+        cave.shortest_path(&scanner.target)
+    );
 
     Ok(())
 }
