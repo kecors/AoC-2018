@@ -72,7 +72,14 @@ impl Engine {
         Engine { groups }
     }
 
-    fn fight(&mut self) -> u32 {
+    fn boost(&mut self, boost: u32) {
+        self.groups
+            .values_mut()
+            .filter(|(group_type, _)| *group_type == GroupType::ImmuneSystem)
+            .for_each(|(_, group)| group.attack_damage += boost);
+    }
+
+    fn fight(&mut self) -> Option<(GroupType, u32)> {
         loop {
             // Combat ends once one army has lost all its units
             let immune_system_units: u32 = self
@@ -88,10 +95,10 @@ impl Engine {
                 .map(|(_, group)| group.units)
                 .sum();
             if immune_system_units == 0 {
-                return infection_units;
+                return Some((GroupType::Infection, infection_units));
             }
             if infection_units == 0 {
-                return immune_system_units;
+                return Some((GroupType::ImmuneSystem, immune_system_units));
             }
 
             // Target selection phase
@@ -138,7 +145,7 @@ impl Engine {
                     .collect();
                 selections.sort();
 
-                for Reverse(selection) in selections {
+                for Reverse(selection) in selections.iter() {
                     // If the attacker cannot deal any damage, it does not select a target
                     if selection.0 == 0 {
                         break;
@@ -155,6 +162,11 @@ impl Engine {
                         }
                     }
                 }
+            }
+
+            // The fight cannot be resolved if no targets can be selected
+            if target_attackers.is_empty() {
+                return None;
             }
 
             // Make HashMap to look up target for each attacker
@@ -175,6 +187,8 @@ impl Engine {
                     .cmp(&self.groups[a].1.initiative)
             });
 
+            let mut damage_done = false;
+
             for attacker_key in attacker_keys.iter() {
                 let (effective_power, attack_type) =
                     if let Some((_, attacker)) = self.groups.get(&attacker_key) {
@@ -189,6 +203,9 @@ impl Engine {
                     if let Some((_, target)) = self.groups.get_mut(&target_key) {
                         let damage = effective_power * target.damage_multiplier(attack_type);
                         let units_killed = damage / target.hit_points;
+                        if units_killed > 0 {
+                            damage_done = true;
+                        }
                         if units_killed > target.units {
                             target.units = 0;
                         } else {
@@ -196,6 +213,10 @@ impl Engine {
                         }
                     }
                 }
+            }
+
+            if !damage_done {
+                return None;
             }
         }
     }
@@ -311,10 +332,28 @@ fn main() -> Result<(), Error> {
     let mut input = String::new();
     stdin().read_to_string(&mut input).unwrap();
 
-    let mut engine = engine().parse(input.as_bytes())?;
+    let mut engine_p1 = engine().parse(input.as_bytes())?;
 
-    let winning_army_units = engine.fight();
-    println!("Part 1: the winning army has {} units", winning_army_units);
+    if let Some((_, winning_army_units)) = engine_p1.fight() {
+        println!("Part 1: the winning army has {} units", winning_army_units);
+    }
+
+    let mut boost = 1;
+    loop {
+        let mut engine_p2 = engine().parse(input.as_bytes())?;
+        engine_p2.boost(boost);
+        if let Some((winning_army_group_type, winning_army_units)) = engine_p2.fight() {
+            if winning_army_group_type == GroupType::ImmuneSystem {
+                println!(
+                    "Part 2: the immune system has {} units left",
+                    winning_army_units
+                );
+                break;
+            }
+        }
+
+        boost += 1;
+    }
 
     Ok(())
 }
