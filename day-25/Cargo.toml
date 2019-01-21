@@ -1,0 +1,8 @@
+[package]
+name = "day-25"
+version = "0.1.0"
+authors = ["Kenneth Collins <dev@kecors.net>"]
+edition = "2018"
+
+[dependencies]
+pom = "3.0.0"
