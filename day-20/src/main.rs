@@ -87,8 +87,13 @@ impl Engine {
             }
         }
     }
+
     fn max_distance(&self) -> u32 {
         *self.distances.values().max().unwrap()
+    }
+
+    fn one_thousand_doors(&self) -> u32 {
+        self.distances.values().filter(|&&x| x >= 1000).count() as u32
     }
 }
 
@@ -121,6 +126,11 @@ fn main() -> Result<(), Error> {
     println!(
         "Part 1: the largest number of required doors is {}",
         engine.max_distance()
+    );
+
+    println!(
+        "Part 2: {} rooms require passing through 1000 doors",
+        engine.one_thousand_doors()
     );
 
     Ok(())
